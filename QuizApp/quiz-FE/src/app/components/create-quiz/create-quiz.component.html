@@ -1,0 +1,57 @@
+<div class="container mt-4">
+  <h2>Create a New Quiz</h2>
+  
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    {{ errorMessage }}
+  </div>
+  
+  <div *ngIf="successMessage" class="alert alert-success">
+    {{ successMessage }}
+  </div>
+  
+  <form (ngSubmit)="createQuiz()">
+    <div class="form-group">
+      <label for="quizId">Quiz ID:</label>
+      <input type="number" id="quizId" class="form-control" [(ngModel)]="quiz.id" name="quizId" required />
+    </div>
+    
+    <div class="form-group">
+      <label for="title">Quiz Title:</label>
+      <input type="text" id="title" class="form-control" [(ngModel)]="quiz.title" name="title" required />
+    </div>
+    
+    <div *ngFor="let question of quiz.questions; let i = index" class="card mt-3">
+      <div class="card-body">
+        <h5>Question {{ i + 1 }}</h5>
+        
+        <div class="form-group">
+          <label>Question Text:</label>
+          <input type="text" class="form-control" [(ngModel)]="question.text" name="questionText{{i}}" required />
+        </div>
+        
+        <div class="form-group mt-2">
+          <label>Options:</label>
+          <div *ngFor="let option of question.options; let j = index" class="input-group mb-2">
+            <div class="input-group-prepend">
+              <span class="input-group-text">{{ j + 1 }}</span>
+            </div>
+            <input type="text" class="form-control" [(ngModel)]="question.options[j]" name="option{{i}}{{j}}" required />
+          </div>
+        </div>
+
+        <div class="form-group mt-2">
+          <label for="correctOption{{i}}">Correct Option:</label>
+          <select class="form-control" [(ngModel)]="question.correct_option" name="correctOption{{i}}" required>
+            <option *ngFor="let option of question.options; let j = index" [value]="j">Option {{ j + 1 }}</option>
+          </select>
+        </div>
+        
+        <button type="button" class="btn btn-danger mt-2" (click)="removeQuestion(i)">Remove Question</button>
+      </div>
+    </div>
+    
+    <button type="button" class="btn btn-primary mt-3" (click)="addQuestion()">Add Question</button>
+    
+    <button type="submit" class="btn btn-success mt-3">Create Quiz</button>
+  </form>
+</div>

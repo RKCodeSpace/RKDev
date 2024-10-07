@@ -1,0 +1,31 @@
+<div class="container mt-4">
+  <h2>Quiz Results</h2>
+
+  <div class="form-group">
+    <label for="quizId">Enter Quiz ID:</label>
+    <input
+      type="number"
+      id="quizId"
+      class="form-control"
+      [(ngModel)]="userQuizId"
+      name="quizId"
+      required
+    />
+  </div>
+
+  <button class="btn btn-primary" (click)="loadResults()">Load Results</button>
+
+  <div *ngIf="result" class="mt-4">
+    <p><strong>Score:</strong> {{ result.score }}</p>
+    <ul>
+      <li *ngFor="let answer of result.answers">
+        Question {{ answer.question_id }}:
+        {{ answer.is_correct ? "Correct" : "Incorrect" }}
+      </li>
+    </ul>
+  </div>
+
+  <div *ngIf="error" class="alert alert-danger mt-3">
+    {{ error }}
+  </div>
+</div>
