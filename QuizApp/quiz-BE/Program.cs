@@ -16,6 +16,9 @@ builder.Services.AddCors(options =>
         });
 });
 builder.Services.AddDbContext<QuizContext>(opt => opt.UseInMemoryDatabase("QuizDb"));
+    
+     builder.Services.AddScoped<IQuizService, QuizService>();
+     builder.Services.AddScoped<IResultStrategy, DefaultResultStrategy>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

@@ -1,104 +1,108 @@
-
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
 public class QuizController : ControllerBase
 {
-    private readonly QuizContext _context;
+    private readonly IQuizService _quizService;
+    private readonly ILogger<QuizController> _logger;
 
-    public QuizController(QuizContext context)
+    public QuizController(IQuizService quizService, ILogger<QuizController> logger)
     {
-        _context = context;
+        _quizService = quizService;
+        _logger = logger;
     }
 
     [HttpPost]
-    public async Task<ActionResult<Quiz>> CreateQuiz(Quiz quiz)
+    public async Task<ActionResult<Quiz>> CreateQuiz([FromBody] Quiz quiz)
     {
-        _context.Quizzes.Add(quiz);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetQuiz), new { id = quiz.Id }, quiz);
+        if (quiz == null || !ModelState.IsValid)
+        {
+            _logger.LogWarning("Invalid model state for creating quiz.");
+            return BadRequest(ModelState);
+        }
+
+        try
+        {
+            var createdQuiz = await _quizService.CreateQuizAsync(quiz);
+            return CreatedAtAction(nameof(GetQuiz), new { id = createdQuiz.Id }, createdQuiz);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while creating quiz.");
+            return StatusCode(500, "An error occurred while creating the quiz.");
+        }
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Quiz>> GetQuiz(int id)
     {
-        var quiz = await _context.Quizzes.Include(q => q.Questions).FirstOrDefaultAsync(q => q.Id == id);
-
-        if (quiz == null)
+        try
         {
-            return NotFound();
+            var quiz = await _quizService.GetQuizAsync(id);
+            if (quiz == null)
+            {
+                _logger.LogInformation($"Quiz with id {id} not found.");
+                return NotFound();
+            }
+
+            return Ok(quiz);
         }
-
-        // Hide correct options before returning
-        quiz.Questions.ForEach(q => q.CorrectOption = -1);
-
-        return quiz;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error occurred while retrieving quiz with id {id}.");
+            return StatusCode(500, "An error occurred while retrieving the quiz.");
+        }
     }
 
-    // [HttpPost("{quizId}/answer")]
-
-
     [HttpGet("{quizId}/result")]
-    public ActionResult<Result> GetResults(int quizId)
+    public async Task<ActionResult<Result>> GetResults(int quizId)
     {
-        var quiz = _context.Quizzes.Include(q => q.Questions).FirstOrDefault(q => q.Id == quizId);
-
-        if (quiz == null)
+        try
         {
-            return NotFound("Quiz not found.");
-        }
-
-        var result = new Result
-        {
-            QuizId = quizId,
-            Score = 0,
-            Answers = new List<Answer>()
-        };
-
-
-        foreach (var question in quiz.Questions)
-        {
-            var answer = new Answer
+            var result = await _quizService.GetResultAsync(quizId, new DefaultResultStrategy());
+            if (result == null)
             {
-                QuestionId = question.Id,
-                IsCorrect = false
-            };
-            result.Answers.Add(answer);
-        }
+                _logger.LogInformation($"Results for quiz with id {quizId} not found.");
+                return NotFound("Quiz not found.");
+            }
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error occurred while retrieving results for quiz with id {quizId}.");
+            return StatusCode(500, "An error occurred while retrieving quiz results.");
+        }
     }
 
     [HttpPost("{quizId}/answer")]
-    public ActionResult<Answer> SubmitAnswer(int quizId, [FromBody] Answer answer)
+    public async Task<ActionResult<Answer>> SubmitAnswer(int quizId, [FromBody] Answer answer)
     {
-        var quiz = _context.Quizzes.Include(q => q.Questions).FirstOrDefault(q => q.Id == quizId);
-
-        if (quiz == null)
+        if (answer == null || !ModelState.IsValid)
         {
-            return NotFound("Quiz not found.");
+            _logger.LogWarning($"Invalid model state for submitting answer to quiz {quizId}.");
+            return BadRequest(ModelState);
         }
 
-        // Find the question in the quiz
-        var question = quiz.Questions.FirstOrDefault(q => q.Id == answer.QuestionId);
-        if (question == null)
+        try
         {
-            return NotFound("Question not found.");
+            var submittedAnswer = await _quizService.SubmitAnswerAsync(quizId, answer);
+            if (submittedAnswer == null)
+            {
+                _logger.LogInformation($"Quiz {quizId} or question {answer.QuestionId} not found.");
+                return NotFound("Quiz or question not found.");
+            }
+
+            return Ok(submittedAnswer);
         }
-
-
-        var isCorrect = question.CorrectOption == answer.SelectedOption;
-
-
-        var response = new Answer
+        catch (Exception ex)
         {
-            QuestionId = answer.QuestionId,
-            IsCorrect = isCorrect
-        };
-
-        return Ok(response);
+            _logger.LogError(ex, $"Error occurred while submitting answer to quiz {quizId}.");
+            return StatusCode(500, "An error occurred while submitting the answer.");
+        }
     }
-
 }
